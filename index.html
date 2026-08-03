@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Panel — Novixis Education</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="https://meet.jit.si/external_api.js"></script>
+<style>
+  :root{
+    --bg:#F5F8FF; --bg-panel:#FFFFFF; --ink:#0A1533; --ink-soft:#4B5878;
+    --blue:#2151F5; --cyan:#38BDF8; --indigo:#4338CA;
+    --line: rgba(10,21,51,0.10); --shadow-soft: 0 20px 50px rgba(10,21,51,0.10); --radius: 18px;
+    --coral:#E0455B; --green:#1EA672;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; min-height:100vh;}
+  a{color:inherit;}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 28px;}
+  header{padding:22px 0; border-bottom:1px solid var(--line); background:var(--bg-panel);}
+  header .wrap{display:flex; align-items:center; justify-content:space-between;}
+  .brand{font-family:'Sora',sans-serif; font-weight:800; font-size:1.2rem; display:flex; align-items:center; gap:10px;}
+  .brand .tag{font-family:'JetBrains Mono',monospace; font-size:0.7rem; background:var(--blue); color:#fff; padding:3px 8px; border-radius:100px;}
+  #signOutBtn{font-size:0.82rem; font-weight:700; color:var(--coral); background:none; border:none; cursor:pointer;}
+
+  #gate{position:fixed; inset:0; background:var(--ink); display:flex; align-items:center; justify-content:center; z-index:100;}
+  #gate .card{background:var(--bg-panel); padding:40px; border-radius:var(--radius); max-width:380px; width:90%; box-shadow:0 30px 70px rgba(0,0,0,0.4);}
+  #gate h1{font-family:'Sora',sans-serif; font-size:1.4rem; margin-bottom:10px;}
+  #gate p{color:var(--ink-soft); font-size:0.9rem; margin-bottom:20px; line-height:1.5;}
+  #gate input{width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--line); font-size:0.95rem; margin-bottom:14px;}
+  #gate button{width:100%; padding:13px; border-radius:10px; border:none; background:var(--ink); color:#fff; font-weight:700; cursor:pointer; font-size:0.95rem;}
+  #gate .err{color:var(--coral); font-size:0.85rem; margin-top:10px; display:none;}
+
+  main{padding:36px 0 80px;}
+  .notice{padding:16px 18px; border-radius:12px; background:var(--bg-panel); border:1px solid var(--line); box-shadow:var(--shadow-soft); margin-bottom:24px; font-size:0.9rem; color:var(--ink-soft);}
+  .dash-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px;}
+  .dash-card{background:var(--bg-panel); border-radius:var(--radius); border:1px solid var(--line); box-shadow:var(--shadow-soft); padding:20px; transition:transform .25s ease, box-shadow .25s ease;}
+  .dash-card:hover{transform:translateY(-4px); box-shadow:0 24px 50px rgba(10,21,51,0.14);}
+  .dash-card strong{display:block; font-family:'Sora',sans-serif; font-size:1.8rem; margin-bottom:4px; color:var(--blue);}
+  .dash-card span{font-size:0.82rem; color:var(--ink-soft);}
+  @media (max-width:800px){ .dash-grid{grid-template-columns:1fr 1fr;} }
+  .notice.bad{color:var(--coral); border-color:var(--coral);}
+
+  .batch-card{background:var(--bg-panel); border-radius:var(--radius); box-shadow:var(--shadow-soft); border:1px solid var(--line); padding:26px; margin-bottom:26px;}
+  .batch-card h2{font-family:'Sora',sans-serif; font-size:1.2rem; margin-bottom:4px;}
+  .batch-card .meta{font-size:0.85rem; color:var(--ink-soft); margin-bottom:18px;}
+  .batch-card .join-link{display:inline-block; margin-bottom:18px; padding:9px 18px; background:var(--blue); color:#fff; border-radius:10px; font-weight:700; font-size:0.85rem; text-decoration:none;}
+
+  .subsection{border-top:1px solid var(--line); padding-top:18px; margin-top:18px;}
+  .subsection h3{font-size:0.95rem; margin-bottom:12px; font-family:'Sora',sans-serif;}
+
+  .student-row{display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); font-size:0.88rem;}
+  .student-row:last-child{border-bottom:none;}
+  .student-row label{display:flex; align-items:center; gap:8px; cursor:pointer;}
+
+  .btn{padding:9px 16px; border-radius:10px; border:1px solid var(--line); background:var(--bg-panel); font-weight:700; font-size:0.82rem; cursor:pointer;}
+  .btn.primary{background:var(--blue); color:#fff; border-color:var(--blue);}
+
+  .item-list{margin-bottom:12px;}
+  .item-list .item{padding:8px 0; border-bottom:1px solid var(--line); font-size:0.86rem;}
+  .item-list .item:last-child{border-bottom:none;}
+  .item-list .item a{color:var(--blue); font-weight:600;}
+  .item-list .item .when{color:var(--ink-soft); font-size:0.76rem; margin-left:8px;}
+
+  .inline-form{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .inline-form input, .inline-form textarea{flex:1; min-width:140px; padding:9px 12px; border-radius:8px; border:1px solid var(--line); font-family:'Inter',sans-serif; font-size:0.86rem;}
+  .save-msg{font-size:0.8rem; color:var(--green); font-weight:600; opacity:0; transition:opacity .3s; margin-left:8px;}
+  .save-msg.show{opacity:1;}
+
+  .google-btn{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:12px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink); font-weight:700; font-size:0.9rem; cursor:pointer; margin-bottom:16px;}
+  .google-btn:hover{background:#f6f7fb;}
+  .divider{display:flex; align-items:center; gap:10px; color:var(--ink-soft); font-size:0.76rem; margin-bottom:16px;}
+  .divider::before, .divider::after{content:''; flex:1; height:1px; background:var(--line);}
+  .auth-tabs{display:flex; gap:8px; margin-bottom:14px;}
+  .auth-tab{flex:1; padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg); font-weight:700; font-size:0.78rem; cursor:pointer; color:var(--ink-soft);}
+  .auth-tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .secondary-btn{background:transparent !important; color:var(--blue) !important; border:1px solid var(--line) !important; margin-top:0;}
+  .link-sent{font-size:0.85rem; color:var(--green); margin-top:10px; display:none;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="card">
+    <h1>Teacher sign-in</h1>
+    <p>Sign in to your teacher account, or create one if this is your first time.</p>
+
+    <button id="googleBtn" class="google-btn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l6-6C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l6-6C34.6 5.1 29.6 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.6C29.6 36 26.9 37 24 37c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.8l6.6 5.6C41.5 36 45 30.8 45 24c0-1.4-.1-2.7-.4-3.5z"/></svg>
+      Continue with Google
+    </button>
+
+    <div class="divider"><span>or</span></div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-auth="password" type="button">Password</button>
+      <button class="auth-tab" data-auth="link" type="button">Email link</button>
+    </div>
+
+    <div id="auth-password">
+      <input type="email" id="gate-email" placeholder="Email" autofocus>
+      <input type="password" id="gate-pass" placeholder="Password">
+      <button id="gate-submit">Sign in</button>
+      <button id="gate-signup" class="secondary-btn">Create account</button>
+    </div>
+
+    <div id="auth-link" style="display:none;">
+      <input type="email" id="link-email" placeholder="Email">
+      <button id="link-submit">Send sign-in link</button>
+      <div class="link-sent" id="link-sent">Check your email — open it on this device and click the link to finish signing in.</div>
+    </div>
+
+    <div class="err" id="gate-err"></div>
+  </div>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="brand">Novixis Teacher Panel <span class="tag">LIVE</span></div>
+    <button id="signOutBtn">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="wrap" id="mainWrap">
+    <div class="notice" id="notReady">Loading your batches…</div>
+  </div>
+</main>
+
+<script>
+if (!window.novixisFirebaseReady) {
+  document.getElementById('gate').innerHTML = '<div class="card"><h1>Firebase not connected</h1><p>This panel needs a real Firebase project to work — edit firebase-config.js with your project keys first.</p></div>';
+} else {
+  const auth = window.novixisAuth;
+  const db = window.novixisDb;
+  const gate = document.getElementById('gate');
+  const mainWrap = document.getElementById('mainWrap');
+
+
+  const googleProvider = new firebase.auth.GoogleAuthProvider();
+  function showErr(msg){ const e = document.getElementById('gate-err'); e.textContent = msg; e.style.display = 'block'; }
+
+  document.getElementById('googleBtn').addEventListener('click', () => {
+    auth.signInWithPopup(googleProvider).catch(e => showErr(e.message));
+  });
+
+  document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('auth-password').style.display = tab.dataset.auth === 'password' ? 'block' : 'none';
+      document.getElementById('auth-link').style.display = tab.dataset.auth === 'link' ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('gate-submit').addEventListener('click', () => {
+    const email = document.getElementById('gate-email').value;
+    const pass = document.getElementById('gate-pass').value;
+    auth.signInWithEmailAndPassword(email, pass).catch(e => showErr(e.message));
+  });
+  document.getElementById('gate-signup').addEventListener('click', () => {
+    const email = document.getElementById('gate-email').value;
+    const pass = document.getElementById('gate-pass').value;
+    if (!email || !pass) { showErr('Enter an email and password to create an account.'); return; }
+    auth.createUserWithEmailAndPassword(email, pass).catch(e => showErr(e.message));
+  });
+
+  document.getElementById('link-submit').addEventListener('click', () => {
+    const email = document.getElementById('link-email').value;
+    if (!email) { showErr('Enter your email first.'); return; }
+    const actionCodeSettings = { url: window.location.href, handleCodeInApp: true };
+    auth.sendSignInLinkToEmail(email, actionCodeSettings).then(() => {
+      window.localStorage.setItem('novixisEmailForSignIn', email);
+      document.getElementById('link-sent').style.display = 'block';
+    }).catch(e => showErr(e.message));
+  });
+
+  if (auth.isSignInWithEmailLink(window.location.href)) {
+    let __linkEmail = window.localStorage.getItem('novixisEmailForSignIn');
+    if (!__linkEmail) { __linkEmail = window.prompt('Confirm your email to complete sign-in:'); }
+    if (__linkEmail) {
+      auth.signInWithEmailLink(__linkEmail, window.location.href).then(() => {
+        window.localStorage.removeItem('novixisEmailForSignIn');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }).catch(e => showErr(e.message));
+    }
+  }
+
+  document.getElementById('signOutBtn').addEventListener('click', () => auth.signOut());
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { gate.style.display = 'flex'; return; }
+    gate.style.display = 'none';
+    mainWrap.innerHTML = '<div class="notice">Loading your batches…</div>';
+
+    const personDoc = await db.collection('people').doc(user.email).get().catch(() => null);
+    if (!personDoc || !personDoc.exists || personDoc.data().role !== 'teacher') {
+      mainWrap.innerHTML = '<div class="notice bad">This account is not registered as a teacher. Ask your admin to add you in the <code>people</code> collection with role "teacher".</div>';
+      return;
+    }
+
+    const batchesSnap = await db.collection('batches').where('teacherEmail', '==', user.email).get();
+    if (batchesSnap.empty) {
+      mainWrap.innerHTML = '<div class="notice">No batches assigned to you yet — ask your admin to assign one.</div>';
+      return;
+    }
+
+    const totalStudents = batchesSnap.docs.reduce((sum, d) => sum + ((d.data().studentEmails || []).length), 0);
+    const todayCounts = await Promise.all(batchesSnap.docs.map(d =>
+      db.collection('batches').doc(d.id).collection('attendance').doc(todayKey()).get()
+        .then(a => a.exists ? Object.values(a.data().records || {}).filter(v => v === 'present').length : 0)
+    ));
+    const markedToday = todayCounts.reduce((a, b) => a + b, 0);
+
+    mainWrap.innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-card"><strong>${batchesSnap.size}</strong><span>My batches</span></div>
+        <div class="dash-card"><strong>${totalStudents}</strong><span>Total students</span></div>
+        <div class="dash-card"><strong>${markedToday}</strong><span>Present today</span></div>
+        <div class="dash-card"><strong>${todayKey()}</strong><span>Today's date</span></div>
+      </div>
+    `;
+    batchesSnap.forEach(doc => renderBatch(doc.id, doc.data()));
+  });
+
+  function todayKey(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  async function renderBatch(batchId, batch){
+    const card = document.createElement('div');
+    card.className = 'batch-card';
+    const students = batch.studentEmails || [];
+
+    card.innerHTML = `
+      <h2>${esc(batch.title || batchId)}</h2>
+      <div class="meta">${esc(batch.track || '')} · ${esc(batch.schedule || '')}</div>
+      <button class="join-link" style="border:none; cursor:pointer;" onclick="startJitsi('${batchId}', '${esc(batch.title || batchId).replace(/'/g, "\\'")}')">Start Live Class (Jitsi)</button>
+      <button class="join-link" style="border:none; cursor:pointer; background:var(--coral); margin-left:10px; display:none;" id="endJitsiBtn-${batchId}" onclick="endJitsi('${batchId}')">End Class</button>
+      <div id="jitsi-${batchId}" style="width:100%; height:500px; display:none; margin-bottom:20px; border-radius:12px; overflow:hidden; border:1px solid var(--line);"></div>
+
+      <div class="subsection">
+        <h3>Attendance — ${todayKey()}</h3>
+        <div id="att-${batchId}"></div>
+        <button class="btn primary" id="saveAtt-${batchId}" style="margin-top:10px;">Save attendance</button>
+        <span class="save-msg" id="attMsg-${batchId}">Saved.</span>
+      </div>
+
+      <div class="subsection">
+        <h3>Materials</h3>
+        <div class="item-list" id="materials-${batchId}"></div>
+        <div class="inline-form">
+          <input type="text" id="matTitle-${batchId}" placeholder="Title (e.g. Week 3 slides)">
+          <input type="text" id="matUrl-${batchId}" placeholder="Link URL">
+          <button class="btn" id="addMat-${batchId}">Add</button>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Announcements</h3>
+        <div class="item-list" id="ann-${batchId}"></div>
+        <div class="inline-form">
+          <textarea id="annText-${batchId}" placeholder="Post an announcement to this batch…" rows="2"></textarea>
+          <button class="btn" id="addAnn-${batchId}">Post</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('mainWrap').appendChild(card);
+
+    // attendance checkboxes
+    const attWrap = document.getElementById('att-' + batchId);
+    const attDoc = await db.collection('batches').doc(batchId).collection('attendance').doc(todayKey()).get();
+    const existing = attDoc.exists ? (attDoc.data().records || {}) : {};
+    attWrap.innerHTML = students.map(email => `
+      <div class="student-row">
+        <label><input type="checkbox" data-email="${esc(email)}" ${existing[email] === 'present' ? 'checked' : ''}> ${esc(email)}</label>
+      </div>`).join('') || '<div class="student-row">No students assigned to this batch yet.</div>';
+
+    document.getElementById('saveAtt-' + batchId).addEventListener('click', () => {
+      const records = {};
+      attWrap.querySelectorAll('input[type=checkbox]').forEach(cb => { records[cb.dataset.email] = cb.checked ? 'present' : 'absent'; });
+      db.collection('batches').doc(batchId).collection('attendance').doc(todayKey()).set({ records, updatedAt: new Date().toISOString() })
+        .then(() => {
+          const msg = document.getElementById('attMsg-' + batchId);
+          msg.classList.add('show');
+          setTimeout(() => msg.classList.remove('show'), 2000);
+        });
+    });
+
+    // materials
+    function loadMaterials(){
+      db.collection('batches').doc(batchId).collection('materials').orderBy('addedAt', 'desc').get().then(snap => {
+        const wrap = document.getElementById('materials-' + batchId);
+        if (snap.empty) { wrap.innerHTML = '<div class="item">No materials yet.</div>'; return; }
+        wrap.innerHTML = snap.docs.map(d => {
+          const m = d.data();
+          return `<div class="item"><a href="${esc(m.url)}" target="_blank">${esc(m.title)}</a><span class="when">${new Date(m.addedAt).toLocaleDateString()}</span></div>`;
+        }).join('');
+      });
+    }
+    loadMaterials();
+    document.getElementById('addMat-' + batchId).addEventListener('click', () => {
+      const title = document.getElementById('matTitle-' + batchId).value.trim();
+      const url = document.getElementById('matUrl-' + batchId).value.trim();
+      if (!title || !url) return;
+      db.collection('batches').doc(batchId).collection('materials').add({ title, url, addedAt: new Date().toISOString() }).then(() => {
+        document.getElementById('matTitle-' + batchId).value = '';
+        document.getElementById('matUrl-' + batchId).value = '';
+        loadMaterials();
+      });
+    });
+
+    // announcements
+    function loadAnnouncements(){
+      db.collection('batches').doc(batchId).collection('announcements').orderBy('postedAt', 'desc').limit(10).get().then(snap => {
+        const wrap = document.getElementById('ann-' + batchId);
+        if (snap.empty) { wrap.innerHTML = '<div class="item">No announcements yet.</div>'; return; }
+        wrap.innerHTML = snap.docs.map(d => {
+          const a = d.data();
+          return `<div class="item">${esc(a.text)}<span class="when">${new Date(a.postedAt).toLocaleString()}</span></div>`;
+        }).join('');
+      });
+    }
+    loadAnnouncements();
+    document.getElementById('addAnn-' + batchId).addEventListener('click', () => {
+      const text = document.getElementById('annText-' + batchId).value.trim();
+      if (!text) return;
+      db.collection('batches').doc(batchId).collection('announcements').add({ text, postedAt: new Date().toISOString(), postedBy: auth.currentUser.email }).then(() => {
+        document.getElementById('annText-' + batchId).value = '';
+        loadAnnouncements();
+      });
+    });
+  }
+
+  function esc(s){ return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+}
+
+window.activeJitsiApis = {};
+
+window.startJitsi = async function(batchId, batchTitle) {
+  const container = document.getElementById('jitsi-' + batchId);
+  if(container.style.display === 'block') return; // already running
+  
+  container.style.display = 'block';
+  document.getElementById('endJitsiBtn-' + batchId).style.display = 'inline-block';
+  
+  const roomName = "NovixisClass_" + batchId + "_" + Math.floor(Math.random()*100000);
+  
+  // Save to active_class so students can join
+  await window.novixisDb.collection('classes').doc(batchId).set({
+    roomName: roomName,
+    active: true,
+    teacher: window.novixisAuth.currentUser.email,
+    startedAt: new Date().toISOString()
+  });
+
+  const options = {
+      roomName: roomName,
+      width: '100%',
+      height: 500,
+      parentNode: container,
+      userInfo: { displayName: "Teacher" },
+      configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false }
+  };
+  const api = new JitsiMeetExternalAPI('meet.jit.si', options);
+  window.activeJitsiApis[batchId] = api;
+};
+
+window.endJitsi = async function(batchId) {
+  const container = document.getElementById('jitsi-' + batchId);
+  container.style.display = 'none';
+  document.getElementById('endJitsiBtn-' + batchId).style.display = 'none';
+  
+  if (window.activeJitsiApis[batchId]) {
+    window.activeJitsiApis[batchId].dispose();
+    delete window.activeJitsiApis[batchId];
+  }
+  
+  await window.novixisDb.collection('classes').doc(batchId).update({
+    active: false,
+    endedAt: new Date().toISOString()
+  });
+};
+</script>
+</body>
+</html>
