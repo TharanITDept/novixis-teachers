@@ -104,7 +104,7 @@
 
     <div id="auth-password">
       <input type="email" id="gate-email" placeholder="Email" autofocus>
-      <input type="password" id="gate-pass" placeholder="Password">
+      <input type="text" id="gate-pass" placeholder="Password" onfocus="this.type='password'">
       <button id="gate-submit">Sign in</button>
       <button id="gate-signup" class="secondary-btn">Create account</button>
     </div>
@@ -116,6 +116,10 @@
     </div>
 
     <div class="err" id="gate-err"></div>
+    <div style="font-size:0.75rem; color:#666; margin-top:20px; text-align:center;">
+      <strong>Novixis Education Portal</strong><br>
+      Authorized Teacher Access Only. By logging in, you agree to our Terms of Service and Privacy Policy. This system is monitored for security purposes.
+    </div>
   </div>
 </div>
 
